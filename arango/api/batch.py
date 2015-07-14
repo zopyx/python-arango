@@ -1,3 +1,5 @@
+"""ArangoDB's batch API."""
+
 import json
 import inspect
 try:
@@ -8,12 +10,15 @@ from arango.exceptions import (
     BatchInvalidError,
     BatchExecuteError
 )
+from arango.constants import HTTP_OK
+from arango.api import DatabaseSpecificAPI
 
 
-class BatchHandler(object):
+class BatchAPI(DatabaseSpecificAPI):
+    """A wrapper around ArangoDB's batch API."""
 
-    def __init__(self, api):
-        self._api = api
+    def __init__(self, connection):
+        super(BatchAPI, self).__init__(connection)
 
     def execute_batch(self, requests):
         data = ""
@@ -36,23 +41,26 @@ class BatchHandler(object):
             data += "Content-Id: {}\r\n\r\n".format(content_id)
             data += "{}\r\n".format(stringify_request(**res))
         data += "--XXXsubpartXXX--\r\n\r\n"
-        res = self._api.post(
-            "/_api/batch",
+        res = self.conn.api_post(
+            "/batch",
             headers={
                 "Content-Type": "multipart/form-data; boundary=XXXsubpartXXX"
             },
             data=data,
         )
-        if res.status_code != 200:
+        if res.status_code not in HTTP_OK:
             raise BatchExecuteError(res)
-        return [
-            json.loads(string) for string in res.obj.split("\r\n") if
-            string.startswith("{") and string.endswith("}")
-        ]
+        if res.obj is None:
+            return []
+        else:
+            return [
+                json.loads(string) for string in res.obj.split("\r\n") if
+                string.startswith("{") and string.endswith("}")
+            ]
 
 
 def stringify_request(method, path, params=None, headers=None, data=None):
-    path = path + "?" + urlencode(params) if params else path
+    path += "?" + urlencode(params) if params else path
     request_string = "{} {} HTTP/1.1".format(method, path)
     if headers:
         for key, value in headers.items():

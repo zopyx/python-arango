@@ -1,66 +1,25 @@
-"""ArangoDB Connection."""
+"""ArangoDB's Top Level API."""
 
-from arango.database import Database
-from arango.api import ArangoAPI
-from arango.exceptions import *
+from arango.connection import ArangoConnection
+from arango.api.general import (
+    DatabaseManagementAPI,
+    VersionAPI,
+    CursorAPI,
+    UserAPI
+)
 
 
-class Arango(object):
-    """A wrapper around ArangoDB API.
+class Arango(DatabaseManagementAPI, VersionAPI, CursorAPI, UserAPI):
+    """A wrapper around ArangoDB's general (top-level) API."""
 
-    :param protocol: the internet transfer protocol (default: http)
-    :type protocol: str
-    :param host: ArangoDB host (default: localhost)
-    :type host: str
-    :param port: ArangoDB port (default: 8529)
-    :type port: int
-    :param username: the username
-    :type username: str
-    :param password: the password
-    :type password: str
-    :param client: the custom client object
-    :type client: arango.clients.base.BaseArangoClient
-    :raises: ArangoConnectionError
-    """
-
-    def __init__(self, protocol="http", host="localhost", port=8529,
-                 username="root", password="", client=None):
-        self._protocol = protocol
-        self._host = host
-        self._port = port
-        self._username = username
-        self._password = password
-        self._client = client
-        self._api = ArangoAPI(
-            protocol=self._protocol,
-            host=self._host,
-            port=self._port,
-            username=self._username,
-            password=self._password,
-            client=self._client,
-        )
-        # Check the connection by requesting a header of the version endpoint
-        res = self._api.head("/_api/version")
-        if res.status_code != 200:
-            raise ArangoConnectionError(
-                "Failed to connect to '{host}' ({status}: {reason})".format(
-                    host=self._host,
-                    status=res.status_code,
-                    reason=res.reason
-                )
-            )
+    def __init__(self, arango_connection=None):
+        if arango_connection is None:
+            arango_connection = ArangoConnection()
+        super(Arango, self).__init__(arango_connection)
         # Cache for Database objects
         self._database_cache = {}
         # Default database (i.e. "_system")
-        self._default_database = Database("_system", self._api)
-
-    def __getattr__(self, attr):
-        """Call __getattr__ of the default database."""
-        return getattr(self._default_database, attr)
-
-    def __getitem__(self, item):
-        """Call __getitem__ of the default database."""
-        return self._default_database.collection(item)
+        self._default_database = Database(self.conn, "_system")
 
     def _invalidate_database_cache(self):
         """Invalidate the Database object cache."""
@@ -69,55 +28,7 @@ class Arango(object):
         for db_name in cached_dbs - real_dbs:
             del self._database_cache[db_name]
         for db_name in real_dbs - cached_dbs:
-            self._database_cache[db_name] = Database(
-                name=db_name,
-                api=ArangoAPI(
-                    protocol=self._protocol,
-                    host=self._host,
-                    port=self._port,
-                    username=self._username,
-                    password=self._password,
-                    db_name=db_name,
-                    client=self._client
-                )
-            )
-
-    @property
-    def version(self):
-        """Return the version of ArangoDB.
-
-        :returns: the version number
-        :rtype: str
-        :raises: VersionGetError
-        """
-        res = self._api.get("/_api/version")
-        if res.status_code != 200:
-            raise VersionGetError(res)
-        return res.obj["version"]
-
-    @property
-    def databases(self):
-        """"Return the database names.
-
-        :returns: the database names
-        :rtype: dict
-        :raises: DatabaseListError
-        """
-        res = self._api.get("/_api/database/user")
-        if res.status_code != 200:
-            raise DatabaseListError(res)
-        user_databases = res.obj["result"]
-
-        res = self._api.get("/_api/database")
-        if res.status_code != 200:
-            raise DatabaseListError(res)
-        all_databases = res.obj["result"]
-
-        return {"all": all_databases, "user": user_databases}
-
-    def db(self, name):
-        """Alias for self.database."""
-        return self.database(name)
+            self._database_cache[db_name] = Database(self.conn, db_name)
 
     def database(self, name):
         """Return the ``Database`` object of the specified name.
@@ -134,7 +45,7 @@ class Arango(object):
                 raise DatabaseNotFoundError(name)
             return self._database_cache[name]
 
-    def add_database(self, name, users=None):
+    def create_database(self, name, users=None):
         """Add a new database.
 
         :param name: the name of the new database
@@ -146,23 +57,28 @@ class Arango(object):
         :raises: DatabaseCreateError
         """
         data = {"name": name, "users": users} if users else {"name": name}
-        res = self._api.post("/_api/database", data=data)
-        if res.status_code != 201:
-            raise DatabaseAddError(res)
+        res = self.conn.api_post("/database", data=data)
+        if res.status_code not in HTTP_OK:
+            raise DatabaseCreateError(res)
         self._invalidate_database_cache()
-        return self.db(name)
+        return self.database(name)
 
-    def remove_database(self, name):
+    def delete_database(self, name, safe_delete=False):
         """Remove the database of the specified name.
 
-        :param name: the name of the database to remove
+        :param name: the name of the database to delete
         :type name: str
+        :param safe_delete: whether to execute a safe delete (ignore 404)
+        :type safe_delete: bool
         :raises: DatabaseDeleteError
         """
-        res = self._api.delete("/_api/database/{}".format(name))
-        if res.status_code != 200:
-            raise DatabaseRemoveError(res)
+        res = self.conn.api_delete("/database/{}".format(name))
+        if res.status_code not in HTTP_OK:
+            if not (res.status_code == 404 and safe_delete):
+                raise DatabaseDeleteError(res)
         self._invalidate_database_cache()
+
+
 
 
 if __name__ == "__main__":

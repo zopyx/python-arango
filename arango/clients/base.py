@@ -1,15 +1,15 @@
-"""Base class for HTTP clients."""
+"""Base class for ArangoDB clients."""
 
 from abc import ABCMeta, abstractmethod
 
 
-class BaseArangoClient(object):
-    """Base ArangoDB HTTP client."""
+class BaseClient:
+    """Base class for ArangoDB clients.
+
+    The methods MUST return an ``arango.response.ArangoResponse`` object.
+    """
 
     __metaclass__ = ABCMeta
-
-    def session_based(self):
-        return hasattr(self, 'close')
 
     @abstractmethod
     def head(self, url, params=None, headers=None, auth=None):
@@ -17,13 +17,13 @@ class BaseArangoClient(object):
 
         :param url: request URL
         :type url: str
-        :param params: query parameters
+        :param params: request parameters
         :type params: dict or None
         :param headers: request headers
         :type headers: dict or None
-        :param auth: username and password
+        :param auth: username and password tuple
         :type auth: tuple or None
-        :returns: ArangoDB http response
+        :returns: ArangoDB http response object
         :rtype: arango.response.ArangoResponse
         """
         raise NotImplementedError
@@ -34,13 +34,13 @@ class BaseArangoClient(object):
 
         :param url: request URL
         :type url: str
-        :param params: query parameters
+        :param params: request parameters
         :type params: dict or None
         :param headers: request headers
         :type headers: dict or None
-        :param auth: username and password
+        :param auth: username and password tuple
         :type auth: tuple or None
-        :returns: ArangoDB http response
+        :returns: ArangoDB http response object
         :rtype: arango.response.ArangoResponse
         """
         raise NotImplementedError
@@ -51,15 +51,15 @@ class BaseArangoClient(object):
 
         :param url: request URL
         :type url: str
-        :param data: JSON serializable object or str
-        :type data: object
-        :param params: query parameters
+        :param data: request payload
+        :type data: str or dict or None
+        :param params: request parameters
         :type params: dict or None
         :param headers: request headers
         :type headers: dict or None
-        :param auth: username and password
+        :param auth: username and password tuple
         :type auth: tuple or None
-        :returns: ArangoDB http response
+        :returns: ArangoDB http response object
         :rtype: arango.response.ArangoResponse
         """
         raise NotImplementedError
@@ -70,15 +70,15 @@ class BaseArangoClient(object):
 
         :param url: request URL
         :type url: str
-        :param data: JSON serializable object or str
-        :type data: dict
-        :param params: query parameters
+        :param data: request payload
+        :type data: str or dict or None
+        :param params: request parameters
         :type params: dict or None
         :param headers: request headers
         :type headers: dict or None
-        :param auth: username and password
+        :param auth: username and password tuple
         :type auth: tuple or None
-        :returns: ArangoDB http response
+        :returns: ArangoDB http response object
         :rtype: arango.response.ArangoResponse
         """
         raise NotImplementedError
@@ -89,15 +89,15 @@ class BaseArangoClient(object):
 
         :param url: request URL
         :type url: str
-        :param data: JSON serializable object or str
-        :type data: dict
-        :param params: query parameters
+        :param data: request payload
+        :type data: str or dict or None
+        :param params: request parameters
         :type params: dict or None
         :param headers: request headers
         :type headers: dict or None
-        :param auth: username and password
+        :param auth: username and password tuple
         :type auth: tuple or None
-        :returns: ArangoDB http response
+        :returns: ArangoDB http response object
         :rtype: arango.response.ArangoResponse
         """
         raise NotImplementedError
@@ -108,13 +108,13 @@ class BaseArangoClient(object):
 
         :param url: request URL
         :type url: str
-        :param params: query parameters
+        :param params: request parameters
         :type params: dict or None
         :param headers: request headers
         :type headers: dict or None
-        :param auth: username and password
+        :param auth: username and password tuple
         :type auth: tuple or None
-        :returns: ArangoDB http response
+        :returns: ArangoDB http response object
         :rtype: arango.response.ArangoResponse
         """
         raise NotImplementedError
